@@ -1,0 +1,19 @@
+refresh_rate: 30 seconds
+appenders:
+  # 标准输出
+  stdout:
+    kind: console
+    encoder:
+      # 格式
+      pattern: "{d(%Y-%m-%d %H:%M:%S)} [{f}:{L}] {h({l})} [{M}] - {m}{n}"
+  requests:
+    kind: file
+    path: "log/requests.log"
+    encoder:
+      # 格式
+      pattern: "{d(%Y-%m-%d %H:%M:%S)} [{f}:{L}] {h({l})} [{M}] - {m}{n}"
+root:
+  level: debug
+  appenders:
+    - stdout
+    - requests
