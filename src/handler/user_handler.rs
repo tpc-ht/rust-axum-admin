@@ -34,7 +34,6 @@ pub async fn login(
 
     let user_result = SysUser::select_by_mobile(&mut rb, &item.username).await;
     log::info!("select_by_mobile: {:?}", user_result);
-
     match user_result {
         Ok(u) => match u {
             None => {
@@ -43,10 +42,10 @@ pub async fn login(
             Some(user) => {
                 println!("当前用户信息：{:?}", user);
                 let id = user.id.unwrap();
-                let username = user.user_name;
-                let password = user.password;
+                let username = &user.user_name;
+                let password = &user.password;
 
-                if &password != &item.password {
+                if password != &item.password {
                     return Json(err_result_msg("密码不正确".to_string()));
                 }
 
@@ -57,54 +56,12 @@ pub async fn login(
                         "用户没有分配角色或者菜单,不能登录".to_string(),
                     ));
                 }
-                // let u = SysUser {
-                //     id: Some(id),
-                //     user_name: username.clone(),
-                //     create_time: user.create_time,
-                //     update_time: user.update_time,
-                //     status_id: user.status_id,
-                //     sort: user.sort,
-                //     mobile: user.mobile,
-                //     nickname: user.nickname,
-                //     remark: user.remark,
-                //     password: "".to_string(),
-                // };
-                // let employee = UserLoginRes {
-                //     // sys_user: u,
-                //     id: Some(id),
-                //     // pub create_time: Option<DateTime>,
-                //     mobile: user.mobile,
-                //     user_name: username.clone(),
-                //     nickname: user.nickname,
-                //     token: "".to_string(),
-                // };
-
-                // println!("employee,{:?}", employee);
-                //Json(ok_result_data(token)
-                //Json(err_result_msg(er))
-
-                // let token = match JWTToken::new(id, &username, btn_menu).create_token("123") {
-                //     Ok(token) => token,
-                //     Err(err) => {
-                //         let er = match err {
-                //             WhoUnfollowedError::JwtTokenError(s) => s,
-                //             _ => "no math error".to_string(),
-                //         };
-                //         er
-                //     }
-                //      // Err(err) => {
-                //       //     let er = match err {
-                //       //         WhoUnfollowedError::JwtTokenError(s) => s,
-                //       //         _ => "no math error".to_string(),
-                //       //     };
-
-                //       // }
-                // };
-                // let token =
-
-                // Json(ok_result_data("".to_string()));
+                println!("用户信息克隆：{:?}", &user);
                 match JWTToken::new(id, &username, btn_menu).create_token("123") {
-                    Ok(token) => Json(ok_result_data(token)),
+                    Ok(token) => Json(ok_result_data(UserLoginData {
+                        token,
+                        user: user.clone(),
+                    })),
                     Err(err) => {
                         let er = match err {
                             WhoUnfollowedError::JwtTokenError(s) => s,
@@ -113,7 +70,6 @@ pub async fn login(
                         Json(err_result_msg(er))
                     }
                 }
-                // println!()
             }
         },
 

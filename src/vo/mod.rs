@@ -59,7 +59,7 @@ pub fn ok_result_data<T: Serialize + Debug>(data: T) -> BaseResponse<T> {
     }
 }
 
-pub fn err_result_msg(msg: String) -> BaseResponse<String> {
+pub fn err_result_msg<T: Serialize + Debug>(msg: String) -> BaseResponse<T> {
     BaseResponse {
         msg: msg.to_string(),
         code: 100,

@@ -1,6 +1,8 @@
 // use rbatis::rbdc::datetime::DateTime;
 use serde::{Deserialize, Serialize};
 
+use crate::model::user::SysUser;
+
 // use crate::model::user::SysUser;
 
 #[derive(Debug, Deserialize)]
@@ -8,14 +10,15 @@ pub struct UserLoginReq {
     pub username: String,
     pub password: String,
 }
+
 #[derive(Debug, Serialize)]
-pub struct UserLoginRes {
-    pub id: Option<i32>,
-    // pub create_time: Option<DateTime>,
-    pub mobile: String,
-    pub user_name: String,
-    pub nickname: String,
-    // pub sys_user: SysUser,
+pub struct UserLoginData {
+    // pub id: Option<i32>,
+    // // pub create_time: Option<DateTime>,
+    // pub mobile: String,
+    // pub user_name: String,
+    // pub nickname: String,
+    pub user: SysUser,
     pub token: String,
 }
 
