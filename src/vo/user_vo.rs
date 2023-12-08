@@ -12,13 +12,16 @@ pub struct UserLoginReq {
 }
 
 #[derive(Debug, Serialize)]
+pub struct UserData {
+    pub id: Option<i32>,
+    pub mobile: String,
+    pub user_name: String,
+    pub nickname: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct UserLoginData {
-    // pub id: Option<i32>,
-    // // pub create_time: Option<DateTime>,
-    // pub mobile: String,
-    // pub user_name: String,
-    // pub nickname: String,
-    pub user: SysUser,
+    pub user: UserData,
     pub token: String,
 }
 

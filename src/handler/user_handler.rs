@@ -57,10 +57,16 @@ pub async fn login(
                     ));
                 }
                 println!("用户信息克隆：{:?}", &user);
+                let userData = UserData {
+                    id: user.id,
+                    mobile: user.mobile,
+                    user_name: user.user_name.clone(),
+                    nickname: user.nickname,
+                };
                 match JWTToken::new(id, &username, btn_menu).create_token("123") {
                     Ok(token) => Json(ok_result_data(UserLoginData {
                         token,
-                        user: user.clone(),
+                        user: userData,
                     })),
                     Err(err) => {
                         let er = match err {
