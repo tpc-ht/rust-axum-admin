@@ -10,9 +10,9 @@ pub struct SysUser {
     pub sort: i32,
     pub mobile: String,
     pub user_name: String,
+    pub nickname: String,
     pub remark: Option<String>,
     pub password: String,
-
 }
 
 rbatis::crud!(SysUser {});
@@ -31,4 +31,5 @@ impl_select_page!(SysUser{select_page_by_name(mobile:&str,status_id:&str) =>"
 
 impl_select!(SysUser{select_by_id(id:i32) -> Option => "`where id = #{id} limit 1`"});
 
-impl_select!(SysUser{select_by_mobile(mobile:&str) -> Option => "`where mobile = #{mobile} limit 1`"});
+// 用户名查询
+impl_select!(SysUser{select_by_mobile(username:&str) -> Option => "`where user_name = #{username} limit 1`"});

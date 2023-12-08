@@ -1,72 +1,124 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use axum::{http::HeaderMap, Json};
 use axum::extract::State;
 use axum::response::IntoResponse;
-use rbatis::RBatis;
+use axum::{http::HeaderMap, Json};
 use rbatis::rbdc::datetime::DateTime;
 use rbatis::sql::PageRequest;
+use rbatis::RBatis;
 use rbs::to_value;
 
-use crate::AppState;
 use crate::model::menu::SysMenu;
 use crate::model::role::SysRole;
 use crate::model::user::SysUser;
 use crate::model::user_role::SysUserRole;
 use crate::utils::error::WhoUnfollowedError;
 use crate::utils::jwt_util::JWTToken;
-use crate::vo::{BaseResponse, err_result_msg, err_result_page, handle_result, ok_result_data, ok_result_msg, ok_result_page};
+use crate::vo::menu_vo::MenuListData;
 use crate::vo::user_vo::*;
+use crate::vo::{
+    err_result_msg, err_result_page, handle_result, ok_result_data, ok_result_msg, ok_result_page,
+    BaseResponse,
+};
+use crate::AppState;
 
 // 后台用户登录
-pub async fn login(State(state): State<Arc<AppState>>, Json(item): Json<UserLoginReq>) -> impl IntoResponse {
+pub async fn login(
+    State(state): State<Arc<AppState>>,
+    Json(item): Json<UserLoginReq>,
+) -> impl IntoResponse {
     log::info!("user login params: {:?}, {:?}", &item, state.batis);
+    // 获取数据实例
     let mut rb = &state.batis;
 
-    let user_result = SysUser::select_by_mobile(&mut rb, &item.mobile).await;
-    log::info!("select_by_mobile: {:?}",user_result);
+    let user_result = SysUser::select_by_mobile(&mut rb, &item.username).await;
+    log::info!("select_by_mobile: {:?}", user_result);
 
     match user_result {
-        Ok(u) => {
-            match u {
-                None => {
-                    return Json(err_result_msg("用户不存在".to_string()));
-                }
-                Some(user) => {
-                    let id = user.id.unwrap();
-                    let username = user.user_name;
-                    let password = user.password;
-
-                    if password.ne(&item.password) {
-                        return Json(err_result_msg("密码不正确".to_string()));
-                    }
-
-                    let btn_menu = query_btn_menu(&id, rb.clone()).await;
-
-                    if btn_menu.len() == 0 {
-                        return Json(err_result_msg("用户没有分配角色或者菜单,不能登录".to_string()));
-                    }
-
-                    match JWTToken::new(id, &username, btn_menu).create_token("123") {
-                        Ok(token) => {
-                            Json(ok_result_data(token))
-                        }
-                        Err(err) => {
-                            let er = match err {
-                                WhoUnfollowedError::JwtTokenError(s) => { s }
-                                _ => "no math error".to_string()
-                            };
-
-                            Json(err_result_msg(er))
-                        }
-                    }
-                }
+        Ok(u) => match u {
+            None => {
+                return Json(err_result_msg("用户不存在".to_string()));
             }
-        }
+            Some(user) => {
+                println!("当前用户信息：{:?}", user);
+                let id = user.id.unwrap();
+                let username = user.user_name;
+                let password = user.password;
+
+                if &password != &item.password {
+                    return Json(err_result_msg("密码不正确".to_string()));
+                }
+
+                let btn_menu = query_btn_menu(&id, rb.clone()).await;
+
+                if btn_menu.len() == 0 {
+                    return Json(err_result_msg(
+                        "用户没有分配角色或者菜单,不能登录".to_string(),
+                    ));
+                }
+                // let u = SysUser {
+                //     id: Some(id),
+                //     user_name: username.clone(),
+                //     create_time: user.create_time,
+                //     update_time: user.update_time,
+                //     status_id: user.status_id,
+                //     sort: user.sort,
+                //     mobile: user.mobile,
+                //     nickname: user.nickname,
+                //     remark: user.remark,
+                //     password: "".to_string(),
+                // };
+                // let employee = UserLoginRes {
+                //     // sys_user: u,
+                //     id: Some(id),
+                //     // pub create_time: Option<DateTime>,
+                //     mobile: user.mobile,
+                //     user_name: username.clone(),
+                //     nickname: user.nickname,
+                //     token: "".to_string(),
+                // };
+
+                // println!("employee,{:?}", employee);
+                //Json(ok_result_data(token)
+                //Json(err_result_msg(er))
+
+                // let token = match JWTToken::new(id, &username, btn_menu).create_token("123") {
+                //     Ok(token) => token,
+                //     Err(err) => {
+                //         let er = match err {
+                //             WhoUnfollowedError::JwtTokenError(s) => s,
+                //             _ => "no math error".to_string(),
+                //         };
+                //         er
+                //     }
+                //      // Err(err) => {
+                //       //     let er = match err {
+                //       //         WhoUnfollowedError::JwtTokenError(s) => s,
+                //       //         _ => "no math error".to_string(),
+                //       //     };
+
+                //       // }
+                // };
+                // let token =
+
+                // Json(ok_result_data("".to_string()));
+                match JWTToken::new(id, &username, btn_menu).create_token("123") {
+                    Ok(token) => Json(ok_result_data(token)),
+                    Err(err) => {
+                        let er = match err {
+                            WhoUnfollowedError::JwtTokenError(s) => s,
+                            _ => "no math error".to_string(),
+                        };
+                        Json(err_result_msg(er))
+                    }
+                }
+                // println!()
+            }
+        },
 
         Err(err) => {
-            log::info!("select_by_column: {:?}",err);
+            log::info!("select_by_column: {:?}", err);
             return Json(err_result_msg("查询用户异常".to_string()));
         }
     }
@@ -91,19 +143,22 @@ async fn query_btn_menu(id: &i32, mut rb: RBatis) -> Vec<String> {
         for x in data.unwrap() {
             btn_menu.push(x.api_url.unwrap_or_default());
         }
-        log::info!("admin login: {:?}",id);
+        log::info!("admin login: {:?}", id);
         btn_menu
     } else {
         let btn_menu_map: Vec<HashMap<String, String>> = rb.query_decode("select distinct u.api_url from sys_user_role t left join sys_role usr on t.role_id = usr.id left join sys_role_menu srm on usr.id = srm.role_id left join sys_menu u on srm.menu_id = u.id where t.user_id = ?", vec![to_value!(id)]).await.unwrap();
         for x in btn_menu_map {
             btn_menu.push(x.get("api_url").unwrap().to_string());
         }
-        log::info!("ordinary login: {:?}",id);
+        log::info!("ordinary login: {:?}", id);
         btn_menu
     }
 }
 
-pub async fn query_user_role(State(state): State<Arc<AppState>>, Json(item): Json<QueryUserRoleReq>) -> impl IntoResponse {
+pub async fn query_user_role(
+    State(state): State<Arc<AppState>>,
+    Json(item): Json<QueryUserRoleReq>,
+) -> impl IntoResponse {
     log::info!("query_user_role params: {:?}", item);
     let mut rb = &state.batis;
 
@@ -136,7 +191,10 @@ pub async fn query_user_role(State(state): State<Arc<AppState>>, Json(item): Jso
     }))
 }
 
-pub async fn update_user_role(State(state): State<Arc<AppState>>, Json(item): Json<UpdateUserRoleReq>) -> impl IntoResponse {
+pub async fn update_user_role(
+    State(state): State<Arc<AppState>>,
+    Json(item): Json<UpdateUserRoleReq>,
+) -> impl IntoResponse {
     log::info!("update_user_role params: {:?}", item);
     let mut rb = &state.batis;
 
@@ -173,7 +231,10 @@ pub async fn update_user_role(State(state): State<Arc<AppState>>, Json(item): Js
     Json(handle_result(result))
 }
 
-pub async fn query_user_menu(headers: HeaderMap, State(state): State<Arc<AppState>>) -> impl IntoResponse {
+pub async fn query_user_menu(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
     let token = headers.get("Authorization").unwrap().to_str().unwrap();
     let split_vec = token.split_whitespace().collect::<Vec<_>>();
     if split_vec.len() != 2 || split_vec[0] != "Bearer" {
@@ -187,7 +248,7 @@ pub async fn query_user_menu(headers: HeaderMap, State(state): State<Arc<AppStat
     let token = split_vec[1];
     let jwt_token_e = JWTToken::verify("123", &token);
     let jwt_token = match jwt_token_e {
-        Ok(data) => { data }
+        Ok(data) => data,
         Err(err) => {
             let resp = BaseResponse {
                 msg: err.to_string(),
@@ -198,7 +259,7 @@ pub async fn query_user_menu(headers: HeaderMap, State(state): State<Arc<AppStat
         }
     };
 
-    log::info!("query user menu params {:?}",jwt_token);
+    log::info!("query user menu params {:?}", jwt_token);
 
     let mut rb = &state.batis;
 
@@ -209,25 +270,32 @@ pub async fn query_user_menu(headers: HeaderMap, State(state): State<Arc<AppStat
         Ok(sys_user) => {
             match sys_user {
                 // 用户不存在的情况
-                None => {
-                    Json(BaseResponse {
-                        msg: "用户不存在".to_string(),
-                        code: 1,
-                        data: None,
-                    })
-                }
+                None => Json(BaseResponse {
+                    msg: "用户不存在".to_string(),
+                    code: 1,
+                    data: None,
+                }),
                 Some(user) => {
                     //role_id为1是超级管理员--判断是不是超级管理员
-                    let sql_str = "select count(id) from sys_user_role where role_id = 1 and user_id = ?";
-                    let count = rb.query_decode::<i32>(sql_str, vec![to_value!(user.id)]).await.unwrap();
+                    let sql_str =
+                        "select count(id) from sys_user_role where role_id = 1 and user_id = ?";
+                    let count = rb
+                        .query_decode::<i32>(sql_str, vec![to_value!(user.id)])
+                        .await
+                        .unwrap();
 
                     let sys_menu_list: Vec<SysMenu>;
 
                     if count > 0 {
-                        sys_menu_list = SysMenu::select_all(&mut rb.clone()).await.unwrap_or_default();
+                        sys_menu_list = SysMenu::select_all(&mut rb.clone())
+                            .await
+                            .unwrap_or_default();
                     } else {
                         let sql_str = "select u.* from sys_user_role t left join sys_role usr on t.role_id = usr.id left join sys_role_menu srm on usr.id = srm.role_id left join sys_menu u on srm.menu_id = u.id where t.user_id = ?";
-                        sys_menu_list = rb.query_decode(sql_str, vec![to_value!(user.id)]).await.unwrap();
+                        sys_menu_list = rb
+                            .query_decode(sql_str, vec![to_value!(user.id)])
+                            .await
+                            .unwrap();
                     }
 
                     let mut sys_menu: Vec<MenuUserList> = Vec::new();
@@ -249,7 +317,9 @@ pub async fn query_user_menu(headers: HeaderMap, State(state): State<Arc<AppStat
                     for id in sys_menu_ids {
                         menu_ids.push(id)
                     }
-                    let menu_result = SysMenu::select_by_ids(&mut rb.clone(), &menu_ids).await.unwrap();
+                    let menu_result = SysMenu::select_by_ids(&mut rb.clone(), &menu_ids)
+                        .await
+                        .unwrap();
                     for menu in menu_result {
                         sys_menu.push(MenuUserList {
                             id: menu.id.unwrap(),
@@ -277,18 +347,19 @@ pub async fn query_user_menu(headers: HeaderMap, State(state): State<Arc<AppStat
             }
         }
         // 查询用户数据库异常
-        Err(err) => {
-            Json(BaseResponse {
-                msg: err.to_string(),
-                code: 1,
-                data: None,
-            })
-        }
+        Err(err) => Json(BaseResponse {
+            msg: err.to_string(),
+            code: 1,
+            data: None,
+        }),
     }
 }
 
 // 查询用户列表
-pub async fn user_list(State(state): State<Arc<AppState>>, Json(item): Json<UserListReq>) -> impl IntoResponse {
+pub async fn user_list(
+    State(state): State<Arc<AppState>>,
+    Json(item): Json<UserListReq>,
+) -> impl IntoResponse {
     log::info!("query user_list params: {:?}", &item);
     let mut rb = &state.batis;
 
@@ -302,7 +373,6 @@ pub async fn user_list(State(state): State<Arc<AppState>>, Json(item): Json<User
     match result {
         Ok(page) => {
             let total = page.total;
-
 
             for user in page.records {
                 list_data.push(UserListData {
@@ -319,14 +389,15 @@ pub async fn user_list(State(state): State<Arc<AppState>>, Json(item): Json<User
 
             Json(ok_result_page(list_data, total))
         }
-        Err(err) => {
-            Json(err_result_page(list_data, err.to_string()))
-        }
+        Err(err) => Json(err_result_page(list_data, err.to_string())),
     }
 }
 
 // 添加用户信息
-pub async fn user_save(State(state): State<Arc<AppState>>, Json(item): Json<UserSaveReq>) -> impl IntoResponse {
+pub async fn user_save(
+    State(state): State<Arc<AppState>>,
+    Json(item): Json<UserSaveReq>,
+) -> impl IntoResponse {
     log::info!("user_save params: {:?}", &item);
 
     let mut rb = &state.batis;
@@ -338,8 +409,9 @@ pub async fn user_save(State(state): State<Arc<AppState>>, Json(item): Json<User
         sort: item.sort,
         mobile: item.mobile,
         user_name: item.user_name,
+        nickname: item.nickname,
         remark: item.remark,
-        password: "123456".to_string(),//默认密码为123456,暂时不加密
+        password: "123456".to_string(), //默认密码为123456,暂时不加密
     };
 
     let result = SysUser::insert(&mut rb, &sys_user).await;
@@ -348,16 +420,19 @@ pub async fn user_save(State(state): State<Arc<AppState>>, Json(item): Json<User
 }
 
 // 更新用户信息
-pub async fn user_update(State(state): State<Arc<AppState>>, Json(item): Json<UserUpdateReq>) -> impl IntoResponse {
+pub async fn user_update(
+    State(state): State<Arc<AppState>>,
+    Json(item): Json<UserUpdateReq>,
+) -> impl IntoResponse {
     log::info!("user_update params: {:?}", &item);
 
     let mut rb = &state.batis;
-    let result = SysUser::select_by_id(&mut rb, item.id.clone()).await.unwrap();
+    let result = SysUser::select_by_id(&mut rb, item.id.clone())
+        .await
+        .unwrap();
 
     match result {
-        None => {
-            Json(err_result_msg("用户不存在".to_string()))
-        }
+        None => Json(err_result_msg("用户不存在".to_string())),
         Some(s_user) => {
             let sys_user = SysUser {
                 id: Some(item.id),
@@ -367,6 +442,7 @@ pub async fn user_update(State(state): State<Arc<AppState>>, Json(item): Json<Us
                 sort: item.sort,
                 mobile: item.mobile,
                 user_name: item.user_name,
+                nickname: item.nickname,
                 remark: item.remark,
                 password: s_user.password,
             };
@@ -379,13 +455,17 @@ pub async fn user_update(State(state): State<Arc<AppState>>, Json(item): Json<Us
 }
 
 // 删除用户信息
-pub async fn user_delete(State(state): State<Arc<AppState>>, Json(item): Json<UserDeleteReq>) -> impl IntoResponse {
+pub async fn user_delete(
+    State(state): State<Arc<AppState>>,
+    Json(item): Json<UserDeleteReq>,
+) -> impl IntoResponse {
     log::info!("user_delete params: {:?}", &item);
     let mut rb = &state.batis;
 
     let ids = item.ids.clone();
     for id in ids {
-        if id != 1 {//id为1的用户为系统预留用户,不能删除
+        if id != 1 {
+            //id为1的用户为系统预留用户,不能删除
             let _ = SysUser::delete_by_column(&mut rb, "id", &id).await;
         }
     }
@@ -394,7 +474,10 @@ pub async fn user_delete(State(state): State<Arc<AppState>>, Json(item): Json<Us
 }
 
 // 更新用户密码
-pub async fn update_user_password(State(state): State<Arc<AppState>>, Json(item): Json<UpdateUserPwdReq>) -> impl IntoResponse {
+pub async fn update_user_password(
+    State(state): State<Arc<AppState>>,
+    Json(item): Json<UpdateUserPwdReq>,
+) -> impl IntoResponse {
     log::info!("update_user_pwd params: {:?}", &item);
 
     let mut rb = &state.batis;
@@ -402,25 +485,19 @@ pub async fn update_user_password(State(state): State<Arc<AppState>>, Json(item)
     let sys_user_result = SysUser::select_by_id(&mut rb, item.id).await;
 
     match sys_user_result {
-        Ok(user_result) => {
-            match user_result {
-                None => {
-                    Json(err_result_msg("用户不存在".to_string()))
-                }
-                Some(mut user) => {
-                    if user.password == item.pwd {
-                        user.password = item.re_pwd;
-                        let result = SysUser::update_by_column(&mut rb, &user, "id").await;
+        Ok(user_result) => match user_result {
+            None => Json(err_result_msg("用户不存在".to_string())),
+            Some(mut user) => {
+                if user.password == item.pwd {
+                    user.password = item.re_pwd;
+                    let result = SysUser::update_by_column(&mut rb, &user, "id").await;
 
-                        Json(handle_result(result))
-                    } else {
-                        Json(err_result_msg("旧密码不正确".to_string()))
-                    }
+                    Json(handle_result(result))
+                } else {
+                    Json(err_result_msg("旧密码不正确".to_string()))
                 }
             }
-        }
-        Err(err) => {
-            Json(err_result_msg(err.to_string()))
-        }
+        },
+        Err(err) => Json(err_result_msg(err.to_string())),
     }
 }

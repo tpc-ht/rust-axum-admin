@@ -1,16 +1,28 @@
+// use rbatis::rbdc::datetime::DateTime;
 use serde::{Deserialize, Serialize};
+
+// use crate::model::user::SysUser;
 
 #[derive(Debug, Deserialize)]
 pub struct UserLoginReq {
-    pub mobile: String,
+    pub username: String,
     pub password: String,
+}
+#[derive(Debug, Serialize)]
+pub struct UserLoginRes {
+    pub id: Option<i32>,
+    // pub create_time: Option<DateTime>,
+    pub mobile: String,
+    pub user_name: String,
+    pub nickname: String,
+    // pub sys_user: SysUser,
+    pub token: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct QueryUserRoleReq {
     pub user_id: i32,
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct QueryUserRoleData {
@@ -67,7 +79,6 @@ pub struct MenuUserList {
     pub icon: String,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct UserListReq {
     #[serde(rename = "current")]
@@ -103,6 +114,7 @@ pub struct UserListData {
 pub struct UserSaveReq {
     pub mobile: String,
     pub user_name: String,
+    pub nickname: String,
     pub status_id: i32,
     pub sort: i32,
     pub remark: Option<String>,
@@ -115,6 +127,7 @@ pub struct UserUpdateReq {
     pub status_id: i32,
     pub mobile: String,
     pub user_name: String,
+    pub nickname: String,
     pub remark: Option<String>,
 }
 
