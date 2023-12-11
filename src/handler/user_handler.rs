@@ -15,7 +15,6 @@ use crate::model::user::SysUser;
 use crate::model::user_role::SysUserRole;
 use crate::utils::error::WhoUnfollowedError;
 use crate::utils::jwt_util::JWTToken;
-use crate::vo::menu_vo::MenuListData;
 use crate::vo::user_vo::*;
 use crate::vo::{
     err_result_msg, err_result_page, handle_result, ok_result_data, ok_result_msg, ok_result_page,
@@ -24,6 +23,9 @@ use crate::vo::{
 use crate::AppState;
 
 // 后台用户登录
+
+// #[swagger]
+// #[post("/api/login")]
 pub async fn login(
     State(state): State<Arc<AppState>>,
     Json(item): Json<UserLoginReq>,
@@ -48,26 +50,24 @@ pub async fn login(
                 if password != &item.password {
                     return Json(err_result_msg("密码不正确".to_string()));
                 }
-
                 let btn_menu = query_btn_menu(&id, rb.clone()).await;
-
                 if btn_menu.len() == 0 {
                     return Json(err_result_msg(
                         "用户没有分配角色或者菜单,不能登录".to_string(),
                     ));
                 }
                 println!("用户信息克隆：{:?}", &user);
-                let userData = UserData {
+                let user_info = UserInfoData {
                     id: user.id,
                     mobile: user.mobile,
                     user_name: user.user_name.clone(),
                     nickname: user.nickname,
+                    create_time: user.create_time,
+                    update_time: user.update_time,
+                    remark: user.remark,
                 };
                 match JWTToken::new(id, &username, btn_menu).create_token("123") {
-                    Ok(token) => Json(ok_result_data(UserLoginData {
-                        token,
-                        user: userData,
-                    })),
+                    Ok(token) => Json(ok_result_data(UserLoginData { token, user_info })),
                     Err(err) => {
                         let er = match err {
                             WhoUnfollowedError::JwtTokenError(s) => s,
@@ -78,7 +78,6 @@ pub async fn login(
                 }
             }
         },
-
         Err(err) => {
             log::info!("select_by_column: {:?}", err);
             return Json(err_result_msg("查询用户异常".to_string()));

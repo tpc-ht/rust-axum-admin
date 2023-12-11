@@ -32,7 +32,6 @@ async fn main() {
     let shared_state = Arc::new(AppState {
         /* ... */ batis: rb.clone(),
     });
-
     let app = Router::new().nest(
         "/api",
         Router::new()
@@ -63,6 +62,7 @@ async fn main() {
     );
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+
     log::info!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())

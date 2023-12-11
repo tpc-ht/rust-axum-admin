@@ -1,3 +1,4 @@
+use rbatis::rbdc::datetime::DateTime;
 // use rbatis::rbdc::datetime::DateTime;
 use serde::{Deserialize, Serialize};
 
@@ -12,16 +13,19 @@ pub struct UserLoginReq {
 }
 
 #[derive(Debug, Serialize)]
-pub struct UserData {
+pub struct UserInfoData {
     pub id: Option<i32>,
     pub mobile: String,
+    pub create_time: Option<DateTime>,
+    pub update_time: Option<DateTime>,
+    pub remark: Option<String>,
     pub user_name: String,
     pub nickname: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct UserLoginData {
-    pub user: UserData,
+    pub user_info: UserInfoData,
     pub token: String,
 }
 
